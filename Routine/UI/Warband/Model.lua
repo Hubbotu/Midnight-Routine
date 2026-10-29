@@ -90,11 +90,13 @@ function MR:GetRowWarbandStatuses(modKey, rowKey, rowMax, expanded, row)
     local showHidden = self.db.profile and self.db.profile.altBoardShowHidden == true
     local resetAt = self.GetLastResetTimestamp and self:GetLastResetTimestamp() or 0
     local isCustomTask = modKey == "custom_tasks" or (row and row.progressModuleKey == "custom_tasks")
-    local progressKey = isCustomTask and "custom_tasks" or modKey
+    local progressKey = isCustomTask and "custom_tasks" or (row and row.progressModuleKey) or modKey
     local isSharedTask = isCustomTask and type(rowKey) == "string" and rowKey:match("^shared_task_%d+$") ~= nil
     local isAccountComplete = isSharedTask and row and row.accountWideComplete == true
     local accountValue = isAccountComplete and self.GetProgress and tonumber(self:GetProgress("custom_tasks", rowKey)) or nil
-    if isCustomTask and row then
+    if row and row.resetType == "none" then
+        resetAt = 0
+    elseif isCustomTask and row then
         if row.preserveCompletion then
             resetAt = 0
         elseif row.resetType == "daily" then
@@ -823,14 +825,14 @@ function MR:GetWarbandWeeklyData(showHiddenOverride, detailCharKey, onlyCharKey)
                                     and MR.db.global.customTaskProgress
                                     and MR.db.global.customTaskProgress[mod.key]
                                     or nil
-                                local progressSource = accountProgress or modProgress
+                                local progressSource = accountProgress
+                                    or (row.progressModuleKey and (charData.progress[row.progressModuleKey] or {}))
+                                    or modProgress
                                 local rowResetAt = resetAt
-                                if mod.key == "custom_tasks" then
-                                    if row.resetType == "none" then
-                                        rowResetAt = 0
-                                    elseif row.resetType == "daily" then
-                                        rowResetAt = self.GetLastDailyTimestamp and self:GetLastDailyTimestamp() or 0
-                                    end
+                                if row.resetType == "none" then
+                                    rowResetAt = 0
+                                elseif mod.key == "custom_tasks" and row.resetType == "daily" then
+                                    rowResetAt = self.GetLastDailyTimestamp and self:GetLastDailyTimestamp() or 0
                                 end
                                 local rowStale = rowResetAt > 0 and lastSyncAt > 0 and lastSyncAt < rowResetAt
                                 local value = row.accountWideComplete
@@ -1365,7 +1367,7 @@ function MR:GetCharacterMainOverview(charKey)
                         if visible and enabled then
                             local progressKey = row.progressModuleKey or mod.key
                             local value = tonumber(self:GetProgress(progressKey, row.key, charKey)) or 0
-                            if moduleStale or (row.resetType and IsStale(row.resetType)) then
+                            if row.resetType ~= "none" and (moduleStale or (row.resetType and IsStale(row.resetType))) then
                                 value = 0
                             end
                             local maxValue = tonumber(row.max) or 0

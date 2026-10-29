@@ -1332,6 +1332,7 @@ tracking.installers["WeeklyTasks"] = function(owner, context)
                 itemId = 285065,
                 noItemProgress = true,
                 progressModuleKey = "labyrinth",
+                resetType = "none",
                 hideStatus = true,
                 control = true,
                 configurable = true,
